@@ -6,9 +6,10 @@ public class Puzzle : MonoBehaviour
 {
 
     public Texture2D image;
-
     public int blocksPerLine = 4;
     Block emptyBlock;
+    Queue<Block> inputs;
+    bool blockIsMoving;
 
     // Start is called before the first frame update
     void Start()
@@ -36,8 +37,8 @@ public class Puzzle : MonoBehaviour
 
                 Block block = blockObject.AddComponent<Block>();
                 block.OnBlockPressed += PlayerMoveBlockInput;
+                block.OnFinishedMoving += OnBlockFinishedMoving;
                 block.Init(new Vector3Int(x, y, 0), imageSlices[blocksPerLine - x - 1, blocksPerLine - y - 1]);
-                //block.coord = new Vector3Int(x, y, 0);
 
                 if (y == 0 && x == blocksPerLine - 1)
                 {
@@ -48,9 +49,24 @@ public class Puzzle : MonoBehaviour
         }
 
         Camera.main.transform.position = new Vector3(0, 1, -blocksPerLine * 2f);
+        inputs = new Queue<Block>();
     }
 
     void PlayerMoveBlockInput(Block blockToMove)
+    {
+        inputs.Enqueue(blockToMove);
+        MakeNextPlayerMove();
+    }
+
+    void MakeNextPlayerMove()
+    {
+        while (inputs.Count > 0 && !blockIsMoving)
+        {
+            MoveBlock(inputs.Dequeue());
+        }
+    }
+
+    void MoveBlock(Block blockToMove)
     {
         if ((blockToMove.coord - emptyBlock.coord).sqrMagnitude == 1)
         {
@@ -60,7 +76,15 @@ public class Puzzle : MonoBehaviour
 
             Vector3 targetPosition = emptyBlock.transform.position;
             emptyBlock.transform.position = blockToMove.transform.position;
-            blockToMove.transform.position = targetPosition;
+            blockToMove.MoveToPisition(targetPosition, .2f);
+            blockIsMoving = true;
         }
+    }
+
+    void OnBlockFinishedMoving()
+    {
+        blockIsMoving = false;
+
+        MakeNextPlayerMove();
     }
 }
