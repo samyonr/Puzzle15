@@ -57,7 +57,6 @@ public class Puzzle : MonoBehaviour
 
                 if (y == 0 && x == blocksPerLine - 1)
                 {
-                    blockObject.SetActive(false);
                     emptyBlock = block;
                 }
             }
@@ -105,6 +104,7 @@ public class Puzzle : MonoBehaviour
     void OnBlockFinishedMoving()
     {
         blockIsMoving = false;
+        CheckIfSolved();
 
         if (state == PuzzleState.InPlay)
         {
@@ -128,6 +128,8 @@ public class Puzzle : MonoBehaviour
         state = PuzzleState.Shuffling;
 
         shuffleMovesRemaining = shuffleLength;
+
+        emptyBlock.gameObject.SetActive(false);
 
         MakeNextShuffleMove();
     }
@@ -158,4 +160,19 @@ public class Puzzle : MonoBehaviour
             }
         }
     }
+
+    void CheckIfSolved()
+    {
+        foreach (Block block in blocks)
+        {
+            if (!block.IsAtStartingCoord())
+            {
+                return;
+            }
+        }
+        
+        state = PuzzleState.Solved;
+        emptyBlock.gameObject.SetActive(true);
+    }
+    
 }
