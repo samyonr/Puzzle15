@@ -1,178 +1,201 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
-public class Puzzle : MonoBehaviour
+
+namespace PuzzleGame
 {
-
-    public Texture2D image;
-    public int blocksPerLine = 4;
-    public int shuffleLength = 20;
-    public float defaultMoveDuration = .2f;
-    public float shuffleMoveDuration = .1f;
-
-    enum PuzzleState {Solved, Shuffling, InPlay};
-    PuzzleState state;
-
-    Block emptyBlock;
-    Block[,] blocks;
-    Queue<Block> inputs;
-    bool blockIsMoving;
-    int shuffleMovesRemaining;
-    Vector3Int prevShuffleOffset;
-
-    // Start is called before the first frame update
-    void Start()
+    public class Puzzle : MonoBehaviour
     {
-        CreatePuzzle();   
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        if (state == PuzzleState.Solved && Input.GetKeyDown(KeyCode.Space))
+        public Texture2D image;
+        public int blocksPerLine = 4;
+        public int shuffleLength = 20;
+        public float defaultMoveDuration = .2f;
+        public float shuffleMoveDuration = .1f;
+
+        enum PuzzleState
         {
-            StartShuffle();
+            Solved,
+            Shuffling,
+            InPlay
+        };
+
+        PuzzleState state;
+
+        Block emptyBlock;
+        Block[,] blocks;
+        Queue<Block> inputs;
+        bool blockIsMoving;
+        int shuffleMovesRemaining;
+        Vector3Int prevShuffleOffset;
+
+        public void Init()
+        {
+            image = ScenePropertirs.GameImage;
+            blocksPerLine = 4;
+            shuffleLength = 20;
+            defaultMoveDuration = 0.2f;
+            shuffleMoveDuration = 0.1f;
+            CreatePuzzle();
         }
-    }
 
-    void CreatePuzzle()
-    {
-        blocks = new Block[blocksPerLine, blocksPerLine];
-        Texture2D[,] imageSlices = ImageSlicer.GetSlices(image, blocksPerLine);
-
-        for (int y = 0; y < blocksPerLine; y++)
+        // Start is called before the first frame update
+        void Start()
         {
-            for (int x = 0; x < blocksPerLine; x++)
+        }
+
+        // Update is called once per frame
+        void Update()
+        {
+            if (state == PuzzleState.Solved && Input.GetKeyDown(KeyCode.Space))
             {
-                GameObject blockObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                blockObject.transform.position = -Vector3.one * (blocksPerLine-1) * .5f + new Vector3(x, y, 0);
-                blockObject.transform.parent = transform;
+                StartShuffle();
+            }
+            if (state == PuzzleState.InPlay && Input.GetKeyDown(KeyCode.Space))
+            {
+                SceneManager.LoadScene("MainMenu");
+            }
+        }
 
-                Block block = blockObject.AddComponent<Block>();
-                block.OnBlockPressed += PlayerMoveBlockInput;
-                block.OnFinishedMoving += OnBlockFinishedMoving;
-                block.Init(new Vector3Int(x, y, 0), imageSlices[blocksPerLine - x - 1, blocksPerLine - y - 1]);
-                blocks[x, y] = block;
+        public void CreatePuzzle()
+        {
+            blocks = new Block[blocksPerLine, blocksPerLine];
+            Texture2D[,] imageSlices = ImageSlicer.GetSlices(image, blocksPerLine);
 
-                if (y == 0 && x == blocksPerLine - 1)
+            for (int y = 0; y < blocksPerLine; y++)
+            {
+                for (int x = 0; x < blocksPerLine; x++)
                 {
-                    emptyBlock = block;
+                    GameObject blockObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    blockObject.transform.position = -Vector3.one * (blocksPerLine-1) * .5f + new Vector3(x, y, 0);
+                    blockObject.transform.parent = transform;
+
+                    Block block = blockObject.AddComponent<Block>();
+                    block.OnBlockPressed += PlayerMoveBlockInput;
+                    block.OnFinishedMoving += OnBlockFinishedMoving;
+                    block.Init(new Vector3Int(x, y, 0), imageSlices[blocksPerLine - x - 1, blocksPerLine - y - 1]);
+                    blocks[x, y] = block;
+
+                    if (y == 0 && x == blocksPerLine - 1)
+                    {
+                        emptyBlock = block;
+                    }
+                }
+            }
+
+            Camera.main.transform.position = new Vector3(0, 1, -blocksPerLine * 2f);
+            inputs = new Queue<Block>();
+        }
+
+        void PlayerMoveBlockInput(Block blockToMove)
+        {
+            if (state == PuzzleState.InPlay)
+            {
+                inputs.Enqueue(blockToMove);
+                MakeNextPlayerMove();
+            }
+        }
+
+        void MakeNextPlayerMove()
+        {
+            while (inputs.Count > 0 && !blockIsMoving)
+            {
+                MoveBlock(inputs.Dequeue(), defaultMoveDuration);
+            }
+        }
+
+        void MoveBlock(Block blockToMove, float duration)
+        {
+            if ((blockToMove.coord - emptyBlock.coord).sqrMagnitude == 1)
+            {
+                blocks[blockToMove.coord.x, blockToMove.coord.y] = emptyBlock;
+                blocks[emptyBlock.coord.x, emptyBlock.coord.y] = blockToMove;
+
+                Vector3Int targetCoord = emptyBlock.coord;
+                emptyBlock.coord = blockToMove.coord;
+                blockToMove.coord = targetCoord;
+
+                Vector3 targetPosition = emptyBlock.transform.position;
+                emptyBlock.transform.position = blockToMove.transform.position;
+                blockToMove.MoveToPisition(targetPosition, duration);
+                blockIsMoving = true;
+            }
+        }
+
+        void OnBlockFinishedMoving()
+        {
+            blockIsMoving = false;
+            CheckIfSolved();
+
+            if (state == PuzzleState.InPlay)
+            {
+                MakeNextPlayerMove();
+            }
+            else if (state == PuzzleState.Shuffling)
+            {
+                if (shuffleMovesRemaining > 0)
+                {
+                    MakeNextShuffleMove();
+                }
+                else
+                {
+                    state = PuzzleState.InPlay;
                 }
             }
         }
 
-        Camera.main.transform.position = new Vector3(0, 1, -blocksPerLine * 2f);
-        inputs = new Queue<Block>();
-    }
-
-    void PlayerMoveBlockInput(Block blockToMove)
-    {
-        if (state == PuzzleState.InPlay)
+        void StartShuffle()
         {
-            inputs.Enqueue(blockToMove);
-            MakeNextPlayerMove();
+            state = PuzzleState.Shuffling;
+
+            shuffleMovesRemaining = shuffleLength;
+
+            emptyBlock.gameObject.SetActive(false);
+
+            MakeNextShuffleMove();
         }
-    }
 
-    void MakeNextPlayerMove()
-    {
-        while (inputs.Count > 0 && !blockIsMoving)
+        void MakeNextShuffleMove()
         {
-            MoveBlock(inputs.Dequeue(), defaultMoveDuration);
-        }
-    }
+            Vector3Int[] offsets = {new Vector3Int(1, 0, 0),
+                                    new Vector3Int(-1, 0, 0),
+                                    new Vector3Int(0, 1, 0),
+                                    new Vector3Int(0, -1, 0) };
+            int randomIndex = Random.Range(0, offsets.Length);
 
-    void MoveBlock(Block blockToMove, float duration)
-    {
-        if ((blockToMove.coord - emptyBlock.coord).sqrMagnitude == 1)
-        {
-            blocks[blockToMove.coord.x, blockToMove.coord.y] = emptyBlock;
-            blocks[emptyBlock.coord.x, emptyBlock.coord.y] = blockToMove;
-
-            Vector3Int targetCoord = emptyBlock.coord;
-            emptyBlock.coord = blockToMove.coord;
-            blockToMove.coord = targetCoord;
-
-            Vector3 targetPosition = emptyBlock.transform.position;
-            emptyBlock.transform.position = blockToMove.transform.position;
-            blockToMove.MoveToPisition(targetPosition, duration);
-            blockIsMoving = true;
-        }
-    }
-
-    void OnBlockFinishedMoving()
-    {
-        blockIsMoving = false;
-        CheckIfSolved();
-
-        if (state == PuzzleState.InPlay)
-        {
-            MakeNextPlayerMove();
-        }
-        else if (state == PuzzleState.Shuffling)
-        {
-            if (shuffleMovesRemaining > 0)
+            for (int i = 0; i < offsets.Length; i++)
             {
-                MakeNextShuffleMove();
-            }
-            else
-            {
-                state = PuzzleState.InPlay;
-            }
-        }
-    }
-
-    void StartShuffle()
-    {
-        state = PuzzleState.Shuffling;
-
-        shuffleMovesRemaining = shuffleLength;
-
-        emptyBlock.gameObject.SetActive(false);
-
-        MakeNextShuffleMove();
-    }
-
-    void MakeNextShuffleMove()
-    {
-        Vector3Int[] offsets = {new Vector3Int(1, 0, 0),
-                                new Vector3Int(-1, 0, 0),
-                                new Vector3Int(0, 1, 0),
-                                new Vector3Int(0, -1, 0) };
-        int randomIndex = Random.Range(0, offsets.Length);
-
-        for (int i = 0; i < offsets.Length; i++)
-        {
-            Vector3Int offset = offsets[(randomIndex + i) % offsets.Length];
-            if (offset != prevShuffleOffset * -1)
-            {
-                Vector3Int moveBlockCoord = emptyBlock.coord + offset;
-
-                if (moveBlockCoord.x >= 0 && moveBlockCoord.x < blocksPerLine &&
-                    moveBlockCoord.y >= 0 && moveBlockCoord.y < blocksPerLine)
+                Vector3Int offset = offsets[(randomIndex + i) % offsets.Length];
+                if (offset != prevShuffleOffset * -1)
                 {
-                    MoveBlock(blocks[moveBlockCoord.x, moveBlockCoord.y], shuffleMoveDuration);
-                    shuffleMovesRemaining--;
-                    prevShuffleOffset = offset;
-                    break;
+                    Vector3Int moveBlockCoord = emptyBlock.coord + offset;
+
+                    if (moveBlockCoord.x >= 0 && moveBlockCoord.x < blocksPerLine &&
+                        moveBlockCoord.y >= 0 && moveBlockCoord.y < blocksPerLine)
+                    {
+                        MoveBlock(blocks[moveBlockCoord.x, moveBlockCoord.y], shuffleMoveDuration);
+                        shuffleMovesRemaining--;
+                        prevShuffleOffset = offset;
+                        break;
+                    }
                 }
             }
         }
-    }
 
-    void CheckIfSolved()
-    {
-        foreach (Block block in blocks)
+        void CheckIfSolved()
         {
-            if (!block.IsAtStartingCoord())
+            foreach (Block block in blocks)
             {
-                return;
+                if (!block.IsAtStartingCoord())
+                {
+                    return;
+                }
             }
+            
+            state = PuzzleState.Solved;
+            emptyBlock.gameObject.SetActive(true);
         }
         
-        state = PuzzleState.Solved;
-        emptyBlock.gameObject.SetActive(true);
     }
-    
 }

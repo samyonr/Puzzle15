@@ -10,18 +10,6 @@ public class Block : MonoBehaviour
     public Vector3Int coord;
     Vector3Int startingCoord;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {  
-
-    }
-
     public void Init(Vector3Int startingCoord, Texture2D image)
     {
         this.startingCoord = startingCoord;
