@@ -9,6 +9,6 @@ public class Game2d : MonoBehaviour
     {
         GameObject gameObject = new GameObject();
         puzzle = gameObject.AddComponent<Puzzle>();
-        puzzle.Init();
+        puzzle.Init(Puzzle.GameMode.Game);
     }
 }

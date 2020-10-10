@@ -2,7 +2,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-
 namespace PuzzleGame
 {
     public class Puzzle : MonoBehaviour
@@ -13,6 +12,14 @@ namespace PuzzleGame
         public int shuffleLength = 20;
         public float defaultMoveDuration = .2f;
         public float shuffleMoveDuration = .1f;
+        
+        public enum GameMode
+        {
+            Game,
+            Demo
+        }
+
+        GameMode gameMode;
 
         enum PuzzleState
         {
@@ -30,11 +37,12 @@ namespace PuzzleGame
         int shuffleMovesRemaining;
         Vector3Int prevShuffleOffset;
 
-        public void Init()
+        public void Init(GameMode mode)
         {
             image = ScenePropertirs.GameImage;
+            gameMode = mode;
             blocksPerLine = 4;
-            shuffleLength = 20;
+            shuffleLength = 30;
             defaultMoveDuration = 0.2f;
             shuffleMoveDuration = 0.1f;
             CreatePuzzle();
@@ -48,13 +56,23 @@ namespace PuzzleGame
         // Update is called once per frame
         void Update()
         {
-            if (state == PuzzleState.Solved && Input.GetKeyDown(KeyCode.Space))
-            {
-                StartShuffle();
+            if (gameMode == GameMode.Game)
+            {                
+                if (state == PuzzleState.Solved && Input.GetKeyDown(KeyCode.Space))
+                {
+                    StartShuffle();
+                }
+                if (state == PuzzleState.InPlay && Input.GetKeyDown(KeyCode.Space))
+                {
+                    SceneManager.LoadScene("MainMenu");
+                }
             }
-            if (state == PuzzleState.InPlay && Input.GetKeyDown(KeyCode.Space))
+            else
             {
-                SceneManager.LoadScene("MainMenu");
+                if (state !=  PuzzleState.Shuffling)
+                {
+                    StartShuffle();
+                }              
             }
         }
 
@@ -146,7 +164,7 @@ namespace PuzzleGame
         }
 
         void StartShuffle()
-        {
+        {  
             state = PuzzleState.Shuffling;
 
             shuffleMovesRemaining = shuffleLength;

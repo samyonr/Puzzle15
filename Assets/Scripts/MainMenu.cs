@@ -6,22 +6,22 @@ using PuzzleGame;
 public class MainMenu : MonoBehaviour
 {
     public List<Texture2D> images;
-    GameObject ImagesButtons;
+    int imageSelectedId;
     GameObject PlayButton;
-    GameObject SelectImageButton;
     Puzzle puzzle;
     GameObject puzzleObj;
 
     void Start()
     {
-        ImagesButtons = GameObject.Find("Images");
         PlayButton = GameObject.Find("PlayButton");
-        SelectImageButton = GameObject.Find("SelectImage");
-        ImagesButtons.SetActive(false);
-        ScenePropertirs.GameImage = images[0];
+        if (ScenePropertirs.GameImage == null)
+        {
+            imageSelectedId = 0;
+            ScenePropertirs.GameImage = images[imageSelectedId];
+        }
         puzzleObj = new GameObject();
         puzzle = puzzleObj.AddComponent<Puzzle>();
-        puzzle.Init();
+        puzzle.Init(Puzzle.GameMode.Demo);
         
     }
 
@@ -34,34 +34,34 @@ public class MainMenu : MonoBehaviour
         SceneManager.LoadScene("Game2D");
     }
 
-    public void ShowImages()
+    public void SelectLeftImage()
     {
-        PlayButton.SetActive(false);
-        SelectImageButton.SetActive(false);
-        ImagesButtons.SetActive(true);
+        imageSelectedId--;
+        if (imageSelectedId < 0)
+        {
+            imageSelectedId = images.Count - 1;
+        }
+        selectImage();
+        
     }
 
-    public void SelectDragonImage()
+    public void SelectRightImage()
     {
-        ScenePropertirs.GameImage = images[0];
-        ImagesButtons.SetActive(false);
+        imageSelectedId++;
+        if (imageSelectedId == images.Count)
+        {
+            imageSelectedId = 0;
+        }
+        selectImage();
+    }
+
+    private void selectImage()
+    {
+        ScenePropertirs.GameImage = images[imageSelectedId];
         PlayButton.SetActive(true);
-        SelectImageButton.SetActive(true);
         Destroy(puzzleObj);
         puzzleObj = new GameObject();
         puzzle = puzzleObj.AddComponent<Puzzle>();
-        puzzle.Init();
-    }
-
-    public void SelectSummerImage()
-    {
-        ScenePropertirs.GameImage = images[1];
-        ImagesButtons.SetActive(false);
-        PlayButton.SetActive(true);
-        SelectImageButton.SetActive(true);
-        Destroy(puzzleObj);
-        puzzleObj = new GameObject();
-        puzzle = puzzleObj.AddComponent<Puzzle>();
-        puzzle.Init();
+        puzzle.Init(Puzzle.GameMode.Demo);
     }
 }
